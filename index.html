@@ -1,3 +1,5 @@
+<!-- AGs Backgammon Clock - Refined Version -->
+<!-- Scroll up in chat for earlier enhancements: styling, behavior, dynamic controls -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -118,23 +120,26 @@
   <h1>AGs Backgammon Clock</h1>
 
   <div class="settings" id="settingsPanel">
-    Time (min): <input type="number" id="mainTime" value="5" />
+    Time (min): <input type="number" id="mainTime" value="14" />
     Delay (sec): <input type="number" id="delayTime" value="12" />
     <button onclick="initializeClock()">Set</button>
   </div>
 
   <div class="clock">
+    <!-- Player 1 -->
     <div class="player" id="player1">
       <input type="text" id="name1" value="Player 1" />
       <div class="delay-display" id="delay1">Delay: 12s</div>
-      <div class="countdown-time" id="time1">05:00</div>
+      <div class="countdown-time" id="time1">14:00</div>
       <button id="startBtn1" onclick="switchTurn(1)">TAP to start</button>
       <button onclick="rotatePlayer()">TURN</button>
     </div>
+
+    <!-- Player 2 -->
     <div class="player" id="player2">
       <input type="text" id="name2" value="Player 2" />
       <div class="delay-display" id="delay2">Delay: 12s</div>
-      <div class="countdown-time" id="time2">05:00</div>
+      <div class="countdown-time" id="time2">14:00</div>
       <button id="startBtn2" onclick="switchTurn(2)">TAP to start</button>
     </div>
   </div>
@@ -145,8 +150,11 @@
   </div>
 
   <script>
-    let time = [300, 300];
-    let delay = 12;
+    let defaultMinutes = 14;
+    let defaultDelay = 12;
+
+    let time = [defaultMinutes * 60, defaultMinutes * 60];
+    let delay = defaultDelay;
     let currentPlayer = null;
     let interval = null;
     let delayCounter = 0;
@@ -158,6 +166,14 @@
       const m = Math.floor(sec / 60);
       const s = sec % 60;
       return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function sanitizeInputs() {
+      const mt = Math.max(0, parseInt(document.getElementById("mainTime").value) || 0);
+      const dt = Math.max(0, parseInt(document.getElementById("delayTime").value) || 0);
+      document.getElementById("mainTime").value = mt;
+      document.getElementById("delayTime").value = dt;
+      return [mt, dt];
     }
 
     function updateDisplay() {
@@ -172,16 +188,21 @@
         delayElems[i].textContent = `Delay: ${delayActive && currentPlayer === i ? delayCounter : delay}s`;
         delayElems[i].classList.toggle("bold-delay", delayActive && currentPlayer === i);
         timeElems[i].classList.toggle("bold-time", !delayActive && currentPlayer === i);
-        startBtns[i].style.display = (!hasStarted || isPaused || currentPlayer === i) ? "inline-block" : "none";
+        if (!hasStarted || isPaused || interval === null) {
+          startBtns[i].style.display = "inline-block";
+        } else {
+          startBtns[i].style.display = currentPlayer === i ? "inline-block" : "none";
+        }
       }
-
-      document.getElementById("settingsPanel").style.display = (!hasStarted || isPaused) ? "block" : "none";
-      document.getElementById("resetBtn").style.display = (!hasStarted || isPaused) ? "inline-block" : "none";
+      const showControls = !hasStarted || isPaused;
+      document.getElementById("settingsPanel").style.display = (showControls && !interval) ? "block" : "none";
+      document.getElementById("resetBtn").style.display = showControls ? "inline-block" : "none";
     }
 
     function initializeClock() {
-      const mt = parseInt(document.getElementById("mainTime").value) || 5;
-      const dt = parseInt(document.getElementById("delayTime").value) || 12;
+      const [mt, dt] = sanitizeInputs();
+      defaultMinutes = mt;
+      defaultDelay = dt;
       time = [mt * 60, mt * 60];
       delay = dt;
       hasStarted = false;
@@ -227,6 +248,9 @@
     }
 
     function togglePause() {
+      if (!interval) {
+        currentPlayer = null;
+      }
       if (interval) {
         stopClock();
         isPaused = true;
@@ -234,6 +258,8 @@
       } else {
         isPaused = false;
         document.getElementById("pauseBtn").textContent = "Pause";
+        // Show Start Over when resuming
+        document.getElementById("resetBtn").style.display = "inline-block";
       }
       updateDisplay();
     }
