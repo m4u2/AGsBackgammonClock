@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AGs Backgammon Clock</title>
+  <style>
+    :root {
+      --primary: #0e2a47;
+      --accent: #61dafb;
+      --danger: #ff4d4f;
+      --font: 'Segoe UI', sans-serif;
+    }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: #f4f7fa;
+      color: var(--primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+    .settings {
+      margin-bottom: 1rem;
+    }
+    .settings input {
+      padding: 0.5rem;
+      margin: 0.5rem;
+      font-size: 1rem;
+      width: 60px;
+      text-align: center;
+    }
+    .settings button {
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .clock {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 1rem;
+      gap: 1rem;
+    }
+    .player {
+      flex: 1 1 250px;
+      border: 2px solid var(--primary);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+      background-color: white;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease;
+    }
+    .rotated {
+      transform: rotate(180deg);
+    }
+    .player input {
+      font-size: 1.2rem;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .delay-display {
+      font-size: 0.9rem;
+      font-style: italic;
+      margin-bottom: 0.5rem;
+    }
+    .bold-delay {
+      font-weight: bold;
+    }
+    .countdown-time {
+      font-size: 3rem;
+      font-weight: normal;
+      transition: font-weight 0.3s ease;
+    }
+    .bold-time {
+      font-weight: bold;
+    }
+    .player button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+    .controls button {
+      margin: 1rem 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #pauseBtn {
+      background-color: var(--danger);
+      color: white;
+    }
+    #resetBtn {
+      background-color: var(--primary);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>AGs Backgammon Clock</h1>
+
+  <div class="settings" id="settingsPanel">
+    Time (min): <input type="number" id="mainTime" value="5" />
+    Delay (sec): <input type="number" id="delayTime" value="12" />
+    <button onclick="initializeClock()">Set</button>
+  </div>
+
+  <div class="clock">
+    <div class="player" id="player1">
+      <input type="text" id="name1" value="Player 1" />
+      <div class="delay-display" id="delay1">Delay: 12s</div>
+      <div class="countdown-time" id="time1">05:00</div>
+      <button id="startBtn1" onclick="switchTurn(1)">TAP to start</button>
+      <button onclick="rotatePlayer()">TURN</button>
+    </div>
+    <div class="player" id="player2">
+      <input type="text" id="name2" value="Player 2" />
+      <div class="delay-display" id="delay2">Delay: 12s</div>
+      <div class="countdown-time" id="time2">05:00</div>
+      <button id="startBtn2" onclick="switchTurn(2)">TAP to start</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="pauseBtn" onclick="togglePause()">Pause</button>
+    <button id="resetBtn" onclick="initializeClock()">Start Over</button>
+  </div>
+
+  <script>
+    let time = [300, 300];
+    let delay = 12;
+    let currentPlayer = null;
+    let interval = null;
+    let delayCounter = 0;
+    let delayActive = false;
+    let isPaused = false;
+    let hasStarted = false;
+
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function updateDisplay() {
+      const timeElems = [document.getElementById("time1"), document.getElementById("time2")];
+      const delayElems = [document.getElementById("delay1"), document.getElementById("delay2")];
+      const startBtns = [document.getElementById("startBtn1"), document.getElementById("startBtn2")];
+
+      timeElems[0].textContent = formatTime(time[0]);
+      timeElems[1].textContent = formatTime(time[1]);
+
+      for (let i = 0; i < 2; i++) {
+        delayElems[i].textContent = `Delay: ${delayActive && currentPlayer === i ? delayCounter : delay}s`;
+        delayElems[i].classList.toggle("bold-delay", delayActive && currentPlayer === i);
+        timeElems[i].classList.toggle("bold-time", !delayActive && currentPlayer === i);
+        startBtns[i].style.display = (!hasStarted || isPaused || currentPlayer === i) ? "inline-block" : "none";
+      }
+
+      document.getElementById("settingsPanel").style.display = (!hasStarted || isPaused) ? "block" : "none";
+      document.getElementById("resetBtn").style.display = (!hasStarted || isPaused) ? "inline-block" : "none";
+    }
+
+    function initializeClock() {
+      const mt = parseInt(document.getElementById("mainTime").value) || 5;
+      const dt = parseInt(document.getElementById("delayTime").value) || 12;
+      time = [mt * 60, mt * 60];
+      delay = dt;
+      hasStarted = false;
+      isPaused = false;
+      stopClock();
+      updateDisplay();
+      document.getElementById("pauseBtn").textContent = "Pause";
+    }
+
+    function switchTurn(player) {
+      if (isPaused) return;
+      stopClock();
+      currentPlayer = player === 1 ? 1 : 0;
+      delayCounter = delay;
+      delayActive = true;
+      interval = setInterval(tick, 1000);
+      hasStarted = true;
+      updateDisplay();
+    }
+
+    function tick() {
+      if (currentPlayer === null) return;
+
+      if (delayActive && delayCounter > 0) {
+        delayCounter--;
+        updateDisplay();
+      } else {
+        delayActive = false;
+        if (time[currentPlayer] > 0) {
+          time[currentPlayer]--;
+          updateDisplay();
+        } else {
+          stopClock();
+          alert(`${document.getElementById("name" + (currentPlayer + 1)).value} is out of time!`);
+        }
+      }
+    }
+
+    function stopClock() {
+      clearInterval(interval);
+      interval = null;
+      currentPlayer = null;
+    }
+
+    function togglePause() {
+      if (interval) {
+        stopClock();
+        isPaused = true;
+        document.getElementById("pauseBtn").textContent = "Resume";
+      } else {
+        isPaused = false;
+        document.getElementById("pauseBtn").textContent = "Pause";
+      }
+      updateDisplay();
+    }
+
+    function rotatePlayer() {
+      document.getElementById("player1").classList.toggle("rotated");
+    }
+
+    window.onload = initializeClock;
+  </script>
+
+</body>
+</html>
