@@ -46,7 +46,7 @@ AGs Backgammon Clock is a web-based timer designed for backgammon enthusiasts. I
     ```
     git clone https://github.com/m4u2/backgammon-clock.git
     ```
-2.  Open [`index.html`](https://index.html) in your browser.
+2.  Open index.html in your browser.
 
 ## Live Demo
 
